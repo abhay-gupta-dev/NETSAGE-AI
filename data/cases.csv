@@ -1,0 +1,141 @@
+case_id,symptom,topology_note,concept_tag,severity,show_outputs,expected_fault,osi_layer,expected_next_command,expected_fix_steps
+NET-001,PC1 cannot reach Server1 in VLAN 30.,Router-on-a-stick with sub-interfaces for VLAN 10 and VLAN 30 on GigabitEthernet0/0.,VLAN,HIGH,"GigabitEthernet0/0.10 is up, line protocol is up
+GigabitEthernet0/0.30 is administratively down, line protocol is down",VLAN 30 router sub-interface is administratively down.,Layer 3,show interfaces GigabitEthernet0/0.30,configure terminal | interface GigabitEthernet0/0.30 | no shutdown
+NET-002,"Hosts on VLAN 20 cannot reach hosts on VLAN 10, but both VLANs work locally.",Switch trunk to router configured; router has sub-interfaces for VLAN 10 and VLAN 20.,VLAN,HIGH,"interface GigabitEthernet0/0.20
+ encapsulation dot1Q 20
+ ip address 192.168.20.1 255.255.255.0
+interface GigabitEthernet0/0.10
+ encapsulation dot1Q 10
+ ip address 192.168.10.1 255.255.255.0
+GigabitEthernet0/0.20 is up, line protocol is up",Inter-VLAN routing sub-interfaces appear correctly configured; likely an access-list or missing route is blocking inter-VLAN traffic rather than VLAN config itself.,Layer 3,show ip route,Verify routing table contains both VLAN subnets | Check for access-lists applied to sub-interfaces | Remove or correct blocking ACL
+NET-003,New PC connected to switch port Fa0/5 cannot get an IP address and is isolated from the rest of VLAN 30.,Access switch with VLAN 30 assigned to most ports.,VLAN,MEDIUM,"interface FastEthernet0/5
+ switchport mode access
+ switchport access vlan 99
+FastEthernet0/5 is up, line protocol is up",Port Fa0/5 is assigned to VLAN 99 instead of VLAN 30 (missing/incorrect VLAN assignment).,Layer 2,show vlan brief,configure terminal | interface FastEthernet0/5 | switchport access vlan 30
+NET-004,Trunk link between SW1 and SW2 is not passing VLAN 40 traffic even though both switches have VLAN 40 defined.,Trunk configured between SW1 Gi0/1 and SW2 Gi0/1.,VLAN,HIGH,"interface GigabitEthernet0/1
+ switchport mode trunk
+ switchport trunk allowed vlan 10,20,30
+GigabitEthernet0/1 is up, line protocol is up",VLAN 40 is not included in the trunk's allowed VLAN list (trunk pruning misconfiguration).,Layer 2,show interfaces trunk,configure terminal | interface GigabitEthernet0/1 | switchport trunk allowed vlan add 40
+NET-005,"PC3 on SW2 cannot communicate with PC4 on SW1, although both are supposedly in VLAN 20.",Two access switches connected via a trunk link; VLAN 20 exists on SW1 but was never created on SW2.,VLAN,HIGH,"SW2#show vlan brief
+VLAN Name Status Ports
+1 default active Fa0/1, Fa0/2
+(VLAN 20 not listed)",VLAN 20 does not exist in the VLAN database on SW2 (VLAN mismatch between switches).,Layer 2,show vlan brief,configure terminal | vlan 20 | name USERS | exit | interface FastEthernet0/2 | switchport access vlan 20
+NET-006,"PC on LAN A cannot reach the server on LAN B across two routers, though both LAN interfaces are up.",R1 and R2 connected via a serial link; static routing environment.,Routing,HIGH,"R1#show ip route
+C 192.168.1.0/24 is directly connected, GigabitEthernet0/0
+C 10.0.0.0/30 is directly connected, Serial0/0/0
+(no route to 192.168.2.0/24)",R1 is missing a static or dynamic route to the remote LAN B network (192.168.2.0/24).,Layer 3,show ip route,configure terminal | ip route 192.168.2.0 255.255.255.0 10.0.0.2
+NET-007,OSPF neighbors between R1 and R2 are not forming; routing table on R1 has no OSPF routes.,"R1 and R2 connected via Serial0/0/0, OSPF area 0 configured on both.",Routing,HIGH,"R1#show ip ospf neighbor
+(no output - no neighbors found)
+R1#show run | include network
+network 192.168.1.0 0.0.0.255 area 0","The serial link network statement for OSPF is missing on R1, so OSPF cannot form a neighbor relationship over the WAN link.",Layer 3,show ip ospf neighbor,configure terminal | router ospf 1 | network 10.0.0.0 0.0.0.3 area 0
+NET-008,Branch router can ping its directly connected networks but cannot reach the HQ network across the WAN.,Branch router uses a default static route pointing to the wrong next-hop IP.,Routing,MEDIUM,"Branch#show ip route
+S* 0.0.0.0/0 [1/0] via 172.16.0.254
+C 172.16.0.0/30 is directly connected, Serial0/0/0","The default route's next-hop IP (172.16.0.254) does not match the HQ-side interface address, so the default route is unreachable/incorrect.",Layer 3,show ip route,configure terminal | no ip route 0.0.0.0 0.0.0.0 172.16.0.254 | ip route 0.0.0.0 0.0.0.0 172.16.0.1
+NET-009,Some remote subnets are unreachable after adding a new router to the topology; routing table shows fewer routes than expected.,EIGRP running between three routers; new router R3 was just added.,Routing,MEDIUM,"R3#show ip eigrp neighbors
+(no neighbors)
+R3#show run | include autonomous-system
+router eigrp 10","R3 is missing the required 'network' statements under EIGRP, so it has not formed adjacencies and is not advertising or learning routes.",Layer 3,show ip eigrp neighbors,configure terminal | router eigrp 10 | network 192.168.3.0 0.0.0.255 | network 10.0.0.4 0.0.0.3
+NET-010,"Traffic destined for the internet works, but traffic to a specific internal subnet (192.168.5.0/24) times out.",Router has a default route to the ISP and several static internal routes.,Routing,MEDIUM,"R1#show ip route
+S* 0.0.0.0/0 via 203.0.113.1
+S 192.168.4.0/24 [1/0] via 10.0.0.2
+(192.168.5.0/24 not present)","A static route for the 192.168.5.0/24 subnet is missing, so traffic to that internal network is unreachable and falls through unexpectedly or is dropped.",Layer 3,show ip route,configure terminal | ip route 192.168.5.0 255.255.255.0 10.0.0.2
+NET-011,PCs in VLAN 10 are not receiving IP addresses automatically and show APIPA addresses (169.254.x.x).,Router configured as DHCP server for VLAN 10 pool.,DHCP,HIGH,"R1#show run | section dhcp
+ip dhcp excluded-address 192.168.10.1 192.168.10.10
+(no ip dhcp pool VLAN10 found)","The DHCP pool for VLAN 10 has not been created on the router, so no addresses are being offered.",Layer 7,show ip dhcp pool,configure terminal | ip dhcp pool VLAN10 | network 192.168.10.0 255.255.255.0 | default-router 192.168.10.1 | dns-server 8.8.8.8
+NET-012,Only some PCs in VLAN 20 receive IP addresses; others get APIPA addresses intermittently.,DHCP pool exists but the address range is nearly exhausted.,DHCP,MEDIUM,"R1#show ip dhcp pool VLAN20
+Pool VLAN20 :
+ Total addresses : 20
+ Leased addresses : 20
+ Excluded addresses : 5","The DHCP scope for VLAN 20 is exhausted (all leasable addresses are in use), so new clients cannot obtain a lease.",Layer 7,show ip dhcp pool VLAN20,configure terminal | ip dhcp pool VLAN20 | network 192.168.20.0 255.255.255.0 (expand the subnet or clear stale leases with clear ip dhcp binding *)
+NET-013,"PCs on a remote VLAN across a router cannot get DHCP addresses from the central DHCP server, though local VLAN clients can.",DHCP server is centralized on R1; VLAN 30 is on a different router-connected segment reached via a relay.,DHCP,HIGH,"R2#show run interface g0/0.30
+interface GigabitEthernet0/0.30
+ encapsulation dot1Q 30
+ ip address 192.168.30.1 255.255.255.0
+(no ip helper-address configured)","The 'ip helper-address' command is missing on the VLAN 30 sub-interface, so DHCP broadcast requests are not relayed to the central DHCP server.",Layer 7,show run interface GigabitEthernet0/0.30,configure terminal | interface GigabitEthernet0/0.30 | ip helper-address 192.168.10.1
+NET-014,A PC in VLAN 10 receives an IP address from the wrong subnet (192.168.99.x instead of 192.168.10.x).,Two DHCP pools exist on the router; the VLAN10 pool has a misconfigured network statement.,DHCP,MEDIUM,"R1#show run | section dhcp pool VLAN10
+ip dhcp pool VLAN10
+ network 192.168.99.0 255.255.255.0
+ default-router 192.168.10.1",The DHCP pool named VLAN10 is bound to the wrong network (192.168.99.0) instead of 192.168.10.0.,Layer 7,show ip dhcp pool VLAN10,configure terminal | ip dhcp pool VLAN10 | network 192.168.10.0 255.255.255.0
+NET-015,PCs can ping the web server by IP address but cannot browse to it by hostname.,DHCP pool does not specify a DNS server option.,DNS,MEDIUM,"R1#show ip dhcp pool VLAN10
+ network 192.168.10.0 255.255.255.0
+ default-router 192.168.10.1
+(no dns-server line present)","The DHCP pool does not advertise a DNS server, so clients cannot resolve hostnames despite having IP-layer connectivity.",Layer 7,show ip dhcp pool VLAN10,configure terminal | ip dhcp pool VLAN10 | dns-server 8.8.8.8
+NET-016,All name resolution fails network-wide; PCs report 'DNS request timed out' for every domain.,Static DNS server IP configured on PCs points to an address that does not exist on the network.,DNS,HIGH,"PC1> ipconfig /all
+DNS Servers: 192.168.10.250
+R1#show ip route
+(192.168.10.250 is not reachable; no host at that address)",The configured DNS server address (192.168.10.250) does not correspond to any real DNS server on the network.,Layer 7,ping 192.168.10.250,Verify correct DNS server address with instructor/topology documentation | Update DHCP pool or PC static DNS setting to the correct DNS server IP
+NET-017,"Internal hostnames resolve fine, but external domains (e.g. an internet-style test domain) fail to resolve.","Local DNS server is configured to forward unresolved external queries, but forwarding is not configured.",DNS,LOW,"DNS-Server#show run | include forward
+(no dns forwarder configured)","The DNS server is not configured to forward queries it cannot resolve locally, so external/unknown domains fail.",Layer 7,show run | include dns,Configure a forwarding/upstream DNS server on the local DNS service | Re-test external name resolution
+NET-018,"PC1 in VLAN 10 cannot reach the server in VLAN 30, but ping to the router's own interfaces succeeds.",An extended ACL is applied inbound on the VLAN 10 sub-interface.,ACL,HIGH,"R1#show access-lists
+Extended IP access list 101
+ 10 deny ip 192.168.10.0 0.0.0.255 192.168.30.0 0.0.0.255 (25 matches)
+ 20 permit ip any any",Access-list 101 explicitly denies traffic from VLAN 10 to VLAN 30 before the permit-any statement is reached.,Layer 3,show access-lists,"configure terminal | no access-list 101 deny ip 192.168.10.0 0.0.0.255 192.168.30.0 0.0.0.255 (or add a specific permit statement above the deny, matching intended policy)"
+NET-019,Telnet access to R2 from the admin PC is being refused even though the password is correct.,VTY lines reference access-class 10 restricting management access.,ACL,MEDIUM,"R2#show run | section line vty
+line vty 0 4
+ access-class 10 in
+ password cisco
+ login
+R2#show access-lists 10
+Standard IP access list 10
+ 10 permit 192.168.99.5","Access-list 10 on the VTY lines only permits a different management host (192.168.99.5), so the admin PC's address is not allowed to Telnet in.",Layer 7,show access-lists 10,configure terminal | access-list 10 permit <admin PC IP address> | end
+NET-020,"Web traffic (HTTP) to the server works, but FTP to the same server is blocked for all users.",Extended ACL applied on the server-facing interface filters by port/protocol.,ACL,MEDIUM,"R1#show access-lists 120
+Extended IP access list 120
+ 10 permit tcp any host 192.168.30.10 eq 80
+ 20 deny tcp any host 192.168.30.10 eq 21
+ 30 permit ip any any",ACL 120 explicitly denies TCP port 21 (FTP control) to the server while permitting port 80 (HTTP).,Layer 4,show access-lists 120,"configure terminal | no 20 (remove the deny line inside ACL 120 if numbered, or recreate the ACL) | access-list 120 permit tcp any host 192.168.30.10 eq 21"
+NET-021,"After applying a new security ACL, all traffic through the router stopped, including traffic that should be allowed.",New extended ACL was applied to an interface without a final explicit permit statement.,ACL,HIGH,"R1#show access-lists 150
+Extended IP access list 150
+ 10 deny tcp any any eq 23
+(implicit deny any any at end of list)","ACL 150 has no explicit permit statements, so the implicit 'deny any any' at the end of the ACL blocks all traffic, not just Telnet.",Layer 3,show access-lists 150,"configure terminal | access-list 150 permit ip any any | (place this after the specific deny statements, then re-apply/verify the ACL)"
+NET-022,Internal PCs cannot reach the internet-simulated network even though the default route is correct.,Router configured for PAT (NAT overload) toward the outside interface.,NAT,HIGH,"R1#show ip nat translations
+(no translations present)
+R1#show run | include ip nat
+ip nat inside source list 1 interface GigabitEthernet0/1 overload
+(GigabitEthernet0/0 missing 'ip nat inside')","The internal-facing interface (GigabitEthernet0/0) is missing the 'ip nat inside' command, so NAT is not applied to internal traffic.",Layer 3,show ip nat translations,configure terminal | interface GigabitEthernet0/0 | ip nat inside | interface GigabitEthernet0/1 | ip nat outside
+NET-023,"Internal hosts can reach the outside network, but an externally-hosted test server cannot initiate connections to the internal web server via the public IP.",Static NAT/port-forwarding rule is intended for the internal web server on port 80.,NAT,MEDIUM,"R1#show run | include ip nat
+ip nat inside source list 1 interface GigabitEthernet0/1 overload
+(no static NAT entry for internal web server present)","There is no static (or port-forwarding) NAT entry for the internal web server, so inbound connections from outside cannot reach it — only outbound PAT is configured.",Layer 3,show ip nat translations verbose,configure terminal | ip nat inside source static tcp 192.168.10.10 80 <public IP> 80
+NET-024,"NAT overload is configured, but internal PCs still cannot reach the outside network; translation table stays empty.",NAT pool/ACL used to define which internal traffic gets translated.,NAT,MEDIUM,"R1#show access-lists 1
+(access-list 1 not found)
+R1#show run | include ip nat inside source
+ip nat inside source list 1 interface GigabitEthernet0/1 overload","Access-list 1, which is supposed to define the internal traffic eligible for NAT, does not exist, so nothing is being translated.",Layer 3,show access-lists 1,configure terminal | access-list 1 permit 192.168.10.0 0.0.0.255
+NET-025,PC1 can ping other devices in its own subnet but cannot reach any device outside its subnet.,PC1 configured manually with a static IP.,Gateway,MEDIUM,"PC1> ipconfig
+IP Address: 192.168.10.25
+Subnet Mask: 255.255.255.0
+Default Gateway: 192.168.10.100","PC1's configured default gateway (192.168.10.100) does not match the router's actual interface address on that subnet (typically 192.168.10.1), so off-subnet traffic has no valid next hop.",Layer 3,show ip interface brief,"On PC1, update the default gateway to match the router's LAN interface IP address (e.g. 192.168.10.1) | Retest connectivity to a remote subnet"
+NET-026,"Two PCs in the same physical VLAN and switch cannot ping each other, and both report intermittent connectivity issues.","PCs statically configured, IP addressing assigned manually by students.",Gateway,MEDIUM,"PC1> ipconfig
+IP Address: 192.168.10.25
+PC2> ipconfig
+IP Address: 192.168.10.25","Duplicate IP address (192.168.10.25) has been assigned to both PC1 and PC2, causing intermittent connectivity and ARP conflicts.",Layer 3,show arp,Assign PC2 a unique IP address within the subnet (e.g. 192.168.10.26) | Clear ARP caches and retest connectivity
+NET-027,"PC1 can reach some hosts in what should be its own subnet but not others, and subnet math seems inconsistent.",PC1 was configured with a subnet mask narrower than the rest of the VLAN.,Gateway,MEDIUM,"PC1> ipconfig
+IP Address: 192.168.10.50
+Subnet Mask: 255.255.255.128
+Other hosts on VLAN use: 255.255.255.0","PC1 has an incorrect subnet mask (255.255.255.128) that splits the VLAN into two logical subnets, so it cannot reach hosts in the other half of the /24.",Layer 3,show ip interface brief,"On PC1, correct the subnet mask to 255.255.255.0 to match the rest of the VLAN | Retest connectivity to previously unreachable hosts"
+NET-028,Laptop cannot see the classroom wireless network (SSID) in its available networks list.,Wireless router/AP configured with SSID broadcast disabled for a lab exercise.,Wireless,LOW,"AP-Config#show run | include ssid
+ssid Classroom-WiFi
+(broadcast-ssid disabled)","SSID broadcast is disabled on the access point, so the network does not appear in the client's scan list even though it is otherwise reachable.",Layer 2,show run (wireless AP configuration),"On the AP, enable SSID broadcast, or manually enter the exact SSID name on the client device | Retest network visibility"
+NET-029,Laptop can see and select the wireless SSID but repeatedly fails to authenticate.,WPA2-PSK configured on the AP; students may have a typo in the passphrase.,Wireless,MEDIUM,"AP-Config#show run | include auth
+authentication wpa2-psk
+passphrase C1sc0Lab2024","The wireless client is likely using an incorrect passphrase, causing repeated WPA2-PSK authentication failures.",Layer 2,show wireless client status (or review AP authentication logs),Re-enter the correct WPA2 passphrase on the client device | Confirm the AP passphrase matches the documented lab credential
+NET-030,"Two wireless clients associated with the same AP cannot ping each other, though both reach the wired network fine.",AP configured with client (peer-to-peer) isolation enabled for security.,Wireless,LOW,"AP-Config#show run | include isolation
+wireless client-isolation enabled","Wireless client isolation is enabled on the AP, intentionally blocking direct traffic between wireless clients while still allowing access to the wired network.",Layer 2,show run (wireless AP configuration),"If peer-to-peer wireless communication is required, disable client isolation on the AP | Otherwise, document this as expected/by-design security behavior"
+NET-031,"PC1 cannot reach the router's own gateway interface, and the switch port LED for that PC is off.",Physical/logical interface state issue directly on the access switch port.,Interface,HIGH,"SW1#show interfaces FastEthernet0/3 status
+Port Name Status Vlan Duplex Speed Type
+Fa0/3 notconnect 10 auto auto 10/100BaseTX
+Fa0/3 is down, line protocol is down (notconnect)","The switch port FastEthernet0/3 is down (notconnect), indicating a physical link problem such as a bad cable or the device being powered off.",Layer 1,show interfaces FastEthernet0/3 status,Verify the physical cable connection and that the end device is powered on | Reseat or replace the cable | Verify the port is not administratively disabled
+NET-032,"PC1 in VLAN 10 cannot reach Server1 in VLAN 30, but VLAN 20 to VLAN 30 works fine.",Router-on-a-stick; VLAN 10 sub-interface uses a different encapsulation VLAN ID than the switch trunk expects.,VLAN Mismatch,HIGH,"R1#show run interface g0/0.10
+interface GigabitEthernet0/0.10
+ encapsulation dot1Q 15
+ ip address 192.168.10.1 255.255.255.0","The router sub-interface for VLAN 10 is configured with the wrong dot1Q tag (15 instead of 10), causing a VLAN ID mismatch with the switch trunk.",Layer 2,show run interface GigabitEthernet0/0.10,configure terminal | interface GigabitEthernet0/0.10 | encapsulation dot1Q 10
+NET-033,"After a topology change, PC1 can reach the local router but no other remote networks are reachable, and the routing table appears mostly empty.",Dynamic routing protocol was recently removed/reconfigured and static backup routes were never added.,Routing,HIGH,"R1#show ip route
+C 192.168.1.0/24 is directly connected, GigabitEthernet0/0
+(no other routes present)","All remote routes are missing from the routing table; the router has only directly connected networks, indicating a missing routing protocol/static route configuration.",Layer 3,show ip route,Verify intended routing method (static vs dynamic) with topology documentation | Reconfigure the routing protocol or add the required static routes
+NET-034,PC1 gets an IP address successfully but cannot ping its own default gateway.,DHCP-assigned default gateway option does not match the router's actual interface IP.,Gateway,MEDIUM,"PC1> ipconfig
+Default Gateway: 192.168.10.254
+R1#show ip interface brief
+GigabitEthernet0/0 192.168.10.1 up up",The DHCP-assigned default gateway (192.168.10.254) does not match the router's actual LAN interface address (192.168.10.1).,Layer 3,show ip dhcp pool,configure terminal | ip dhcp pool VLAN10 | default-router 192.168.10.1
+NET-035,"Traffic from VLAN 10 to VLAN 30 is denied by the firewall/ACL, but the case owner insists the ACL was already removed.",An old ACL is still applied to the interface even though its contents were cleared.,ACL,MEDIUM,"R1#show run interface g0/0.10
+interface GigabitEthernet0/0.10
+ ip access-group 101 in
+R1#show access-lists 101
+(access-list 101 has no entries — treated as empty/undefined)","An access-group reference to ACL 101 is still applied to the interface even though the ACL itself is empty/removed, which can cause unpredictable behavior depending on IOS version.",Layer 3,show run interface GigabitEthernet0/0.10,configure terminal | interface GigabitEthernet0/0.10 | no ip access-group 101 in

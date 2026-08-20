@@ -1,0 +1,21 @@
+# Environment / secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Streamlit
+.streamlit/
+
+# Generated audit log (local run data, not part of source)
+data/audit_log.jsonl
+
+# OS files
+.DS_Store
+Thumbs.db
