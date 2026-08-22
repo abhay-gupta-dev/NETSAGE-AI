@@ -5,6 +5,8 @@ combines a **deterministic Python rule checker** with an **LLM-based
 diagnosis engine** and a **human-in-the-loop review workflow** to help
 students troubleshoot Cisco Packet Tracer-style networking labs.
 
+**🔗 Live Demo:** https://netsage-ai-tyx7embmqkgk3w3lhu63km.streamlit.app/
+
 ---
 
 ## 1. Project Overview
@@ -25,6 +27,8 @@ output, NetSage AI:
 
 **No command is ever executed on a real or simulated network device.**
 This is strictly a diagnostic/recommendation tool for lab education.
+
+Try it live without installing anything: https://netsage-ai-tyx7embmqkgk3w3lhu63km.streamlit.app/
 
 ## 2. Problem Statement
 
@@ -162,6 +166,9 @@ git clone <this-repository>
 cd NetSage-AI
 ```
 
+> Prefer not to install anything locally? Use the live hosted version
+> instead: https://netsage-ai-tyx7embmqkgk3w3lhu63km.streamlit.app/
+
 ## 9. Virtual Environment Setup
 
 ```bash
@@ -219,6 +226,12 @@ response), the app **automatically and safely falls back to Demo
 Mode** instead of crashing.
 
 ## 13. How to Run
+
+**Option A — Use the hosted version (no setup required):**
+
+https://netsage-ai-tyx7embmqkgk3w3lhu63km.streamlit.app/
+
+**Option B — Run locally:**
 
 ```bash
 streamlit run src/app.py
@@ -329,7 +342,9 @@ The test suite (29 tests) covers:
 
 ## 22. Demo Instructions (NET-001 Walkthrough)
 
-1. Run `streamlit run src/app.py`.
+1. Open the app — either the live link
+   (https://netsage-ai-tyx7embmqkgk3w3lhu63km.streamlit.app/) or run
+   `streamlit run src/app.py` locally.
 2. In the sidebar, confirm the case selector defaults to **NET-001**.
 3. Review the displayed symptom ("PC1 cannot reach Server1 in VLAN
    30") and the raw show output.
