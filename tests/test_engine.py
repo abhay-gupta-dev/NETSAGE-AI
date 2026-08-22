@@ -14,17 +14,17 @@ from src.engine import (
 
 
 def test_missing_api_key_triggers_demo_mode(monkeypatch):
-    monkeypatch.delenv("LLM_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     assert is_live_mode_available() is False
 
 
 def test_api_key_present_enables_live_mode_flag(monkeypatch):
-    monkeypatch.setenv("LLM_API_KEY", "fake-key-for-test")
+    monkeypatch.setenv("GEMINI_API_KEY", "fake-key-for-test")
     assert is_live_mode_available() is True
 
 
 def test_diagnose_case_demo_mode_returns_valid_structure(monkeypatch):
-    monkeypatch.delenv("LLM_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     checker_result, diagnosis = diagnose_case(
         symptom="PC1 cannot reach Server1 in VLAN 30.",
         topology_note="Router-on-a-stick topology.",
@@ -39,7 +39,7 @@ def test_diagnose_case_demo_mode_returns_valid_structure(monkeypatch):
 
 
 def test_diagnose_case_demo_mode_no_errors_still_returns_structure(monkeypatch):
-    monkeypatch.delenv("LLM_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     checker_result, diagnosis = diagnose_case(
         symptom="Something vague happened.",
         topology_note="Unclear topology.",

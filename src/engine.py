@@ -8,7 +8,7 @@ Responsibilities:
 2. Run the deterministic rule checker (checker.py).
 3. Build a structured prompt (using prompts/diagnose_prompt.md as the
    system prompt).
-4. Send the prompt to an LLM provider (or use DEMO MODE if no API key
+4. Send the prompt to the Gemini API (or use DEMO MODE if no API key
    is configured).
 5. Parse and validate the LLM's JSON response.
 6. Return a safe, structured AIDiagnosis object.
@@ -23,13 +23,20 @@ from __future__ import annotations
 
 import json
 import os
-import random
 from pathlib import Path
 from typing import Any
+
+from dotenv import load_dotenv
 
 from .checker import run_checks
 from .models import REQUIRED_AI_FIELDS, AIDiagnosis
 from .utils import get_project_root
+
+# Load variables from a local .env file (if present) into the process
+# environment. This must happen before any os.environ.get() calls below.
+# Safe to call even if .env does not exist, and safe to call multiple
+# times (e.g. once from app.py's import and once here).
+load_dotenv(get_project_root() / ".env")
 
 # ---------------------------------------------------------------------------
 # Provider abstraction
@@ -51,47 +58,52 @@ def _get_prompt_template() -> str:
 
 
 def is_live_mode_available() -> bool:
-    """Return True if an LLM API key is configured in the environment."""
-    return bool(os.environ.get("LLM_API_KEY", "").strip())
+    """Return True if a Gemini API key is configured in the environment."""
+    return bool(os.environ.get("GEMINI_API_KEY", "").strip())
 
 
 def _call_llm_live(user_prompt: str) -> str:
     """
-    Call the configured LLM provider and return its raw text response.
+    Call the configured Gemini model and return its raw text response.
 
-    This function is intentionally provider-agnostic: it reads
-    LLM_API_KEY and LLM_MODEL from the environment so the underlying
-    provider can be swapped later without touching the rest of the app.
-    Uses the Anthropic Messages API by default.
+    Reads GEMINI_API_KEY and GEMINI_MODEL from the environment via the
+    official google-genai SDK. The system prompt (prompts/diagnose_prompt.md)
+    is passed as a system_instruction so the model's safety rules and JSON
+    schema requirements are enforced on every call.
     """
-    api_key = os.environ.get("LLM_API_KEY", "").strip()
-    model = os.environ.get("LLM_MODEL", "claude-sonnet-4-6").strip()
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    model = os.environ.get("GEMINI_MODEL", "gemini-flash-latest").strip()
 
     if not api_key:
-        raise LLMProviderError("LLM_API_KEY is not set.")
+        raise LLMProviderError("GEMINI_API_KEY is not set.")
 
     try:
-        import anthropic  # imported lazily so demo mode never requires it
+        from google import genai
+        from google.genai import types
     except ImportError as exc:
         raise LLMProviderError(
-            "The 'anthropic' package is not installed. Run "
+            "The 'google-genai' package is not installed. Run "
             "'pip install -r requirements.txt', or use demo mode."
         ) from exc
 
     try:
-        client = anthropic.Anthropic(api_key=api_key)
-        response = client.messages.create(
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
             model=model,
-            max_tokens=1000,
-            system=_get_prompt_template(),
-            messages=[{"role": "user", "content": user_prompt}],
+            contents=user_prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=_get_prompt_template(),
+                temperature=0.2,
+            ),
         )
-        text_parts = [
-            block.text for block in response.content if getattr(block, "type", "") == "text"
-        ]
-        return "".join(text_parts).strip()
+        text = (response.text or "").strip()
+        if not text:
+            raise LLMProviderError("Gemini returned an empty response.")
+        return text
+    except LLMProviderError:
+        raise
     except Exception as exc:  # noqa: BLE001 - surfaced as a friendly error upstream
-        raise LLMProviderError(f"LLM API call failed: {exc}") from exc
+        raise LLMProviderError(f"Gemini API call failed: {exc}") from exc
 
 
 # ---------------------------------------------------------------------------

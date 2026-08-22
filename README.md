@@ -99,7 +99,7 @@ AUDIT
 - Streamlit (UI)
 - Pandas (case dataset handling)
 - Standard library: `json`, `re`, `pathlib`, `csv`
-- Anthropic API (optional, for live mode) via `LLM_API_KEY`
+- Google Gemini API (optional, for live mode) via `GEMINI_API_KEY`
 - `python-dotenv` for local environment variable loading
 - `pytest` for testing
 
@@ -190,11 +190,11 @@ Copy `.env.example` to `.env` and fill in your own values if you want
 **live** AI mode:
 
 ```
-LLM_API_KEY=your_api_key_here
-LLM_MODEL=claude-sonnet-4-6
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-flash-latest
 ```
 
-If `.env` is missing or `LLM_API_KEY` is empty, the app automatically
+If `.env` is missing or `GEMINI_API_KEY` is empty, the app automatically
 runs in **Demo Mode** — no code changes required.
 
 ## 11. Demo Mode
@@ -210,9 +210,10 @@ walkthrough) without any external dependency.
 
 ## 12. Live AI Mode
 
-Set `LLM_API_KEY` (and optionally `LLM_MODEL`) in your `.env` file.
+Set `GEMINI_API_KEY` (and optionally `GEMINI_MODEL`) in your `.env` file.
+Get a free Gemini API key at https://aistudio.google.com/apikey.
 When a key is present, `src/engine.py` sends the structured prompt to
-the Anthropic Messages API and validates the JSON response. If the
+the Google Gemini API and validates the JSON response. If the
 live call fails for any reason (bad key, network error, malformed
 response), the app **automatically and safely falls back to Demo
 Mode** instead of crashing.

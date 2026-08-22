@@ -64,7 +64,7 @@ def render_sidebar(df: pd.DataFrame) -> str:
     st.sidebar.markdown(f"**AI Mode:** {mode_label}")
     if not is_live_mode_available():
         st.sidebar.caption(
-            "No LLM_API_KEY detected. Using deterministic demo responses. "
+            "No GEMINI_API_KEY detected. Using deterministic demo responses. "
             "See .env.example to enable live mode."
         )
 
